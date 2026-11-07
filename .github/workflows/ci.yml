@@ -1,0 +1,35 @@
+name: PWA Detector Engine CI
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["pwa-detector-engine/**", ".github/workflows/ci.yml"]
+  pull_request:
+    branches: ["main"]
+    paths: ["pwa-detector-engine/**", ".github/workflows/ci.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pwa-detector-engine
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pwa-detector-engine/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest httpx
+
+      - name: Run tests
+        run: python -m pytest -v tests
