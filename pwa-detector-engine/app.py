@@ -154,8 +154,8 @@ def check_pwa(url: str = Query(..., max_length=2048, description="URL da scansio
 
     service_worker_detected = detect_service_worker(soup)
 
-    # Un manifest valido è requisito indispensabile.
-    is_pwa = manifest_file_valid and (manifest_tag_found or service_worker_detected)
+    # Il manifest valido (trovato tramite il tag) è condizione necessaria e sufficiente.
+    is_pwa = manifest_file_valid
 
     return PWAResponse(
         url=final_url,
