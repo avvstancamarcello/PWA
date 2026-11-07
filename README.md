@@ -124,6 +124,14 @@ L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interat
 
 ---
 
+## ⚠️ Known Limitations
+
+*   **Script esterni:** il Service Worker viene cercato solo negli script inline della pagina. Se la registrazione è in un file `.js` esterno, `service_worker_detected` può essere `false` (falso negativo). Il verdetto `is_pwa` dipende comunque solo dal manifest valido.
+*   **Rendering:** non viene eseguito JavaScript; il tool privilegia velocità e sicurezza rispetto a un browser headless.
+*   **Codice:** l'app è in `pwa-detector-engine/` (API, front-end, file di deploy e test).
+
+---
+
 ## 🎨 Logica di Visualizzazione Front-End (Checklist Grafica)
 Il client JavaScript estrae selettivamente i parametri booleani mappandoli nell'interfaccia utente in questo modo:
 
