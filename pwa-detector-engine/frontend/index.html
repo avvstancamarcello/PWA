@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Detector Engine</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .search-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 450px; width: 100%; }
+        input[type="text"] { width: 70%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; outline: none; }
+        input[type="text"]:focus { border-color: #3498db; }
+        button { padding: 11px 20px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-left: 5px; }
+        button:hover { background: #2980b9; }
+        .result-badge { margin-top: 25px; padding: 15px; border-radius: 8px; font-weight: bold; display: none; text-align: left; }
+        .pwa-true { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .pwa-false { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .details { margin-top: 10px; font-size: 14px; font-weight: normal; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="search-container">
+    <h2>Verifica Struttura PWA</h2>
+    <p>Inserisci un dominio per controllare se è un'App Web installabile</p>
+    <input type="text" id="urlInput" placeholder="es. europa.eu">
+    <button id="searchBtn">Cerca</button>
+    <div id="resultBadge" class="result-badge"></div>
+</div>
+
+<script>
+// Modificare con il dominio reale dell'API
+const API_BASE = "https://api.tuosito.it";
+
+const badge = document.getElementById("resultBadge");
+
+function row(ok, text) {
+    const div = document.createElement("div");
+    div.textContent = (ok ? "✅ " : "❌ ") + text;
+    return div;
+}
+
+async function checkPWA() {
+    const urlInput = document.getElementById("urlInput").value.trim();
+    if (!urlInput) {
+        alert("Per favore, inserisci un URL valido.");
+        return;
+    }
+
+    const endpoint = `${API_BASE}/api/v1/check-pwa?url=${encodeURIComponent(urlInput)}`;
+    badge.style.display = "block";
+    badge.className = "result-badge";
+    badge.textContent = "⏳ Scansione in corso...";
+
+    try {
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+            let detail = "Errore nella risposta dal server delle API";
+            try { detail = (await response.json()).detail || detail; } catch (_) {}
+            throw new Error(detail);
+        }
+        const data = await response.json();
+
+        badge.className = "result-badge " + (data.is_pwa ? "pwa-true" : "pwa-false");
+        badge.textContent = data.is_pwa ? "🛡️ VERDETTO: PWA ESISTENTE" : "🔴 VERDETTO: NO PWA";
+
+        const details = document.createElement("div");
+        details.className = "details";
+        const title = document.createElement("b");
+        title.textContent = "Ispezione Architettura Web:";
+        details.append(
+            title,
+            row(data.manifest_tag_found, 'Tag <link rel="manifest"> rilevato'),
+            row(data.manifest_file_valid, "File manifest integro e valido"),
+            row(data.service_worker_detected, "Registrazione Service Worker rilevata")
+        );
+        badge.appendChild(details);
+    } catch (error) {
+        badge.className = "result-badge pwa-false";
+        badge.textContent = "❌ Errore durante la verifica: " + error.message;
+    }
+}
+
+document.getElementById("searchBtn").addEventListener("click", checkPWA);
+document.getElementById("urlInput").addEventListener("keydown", (e) => { if (e.key === "Enter") checkPWA(); });
+</script>
+</body>
+</html>
