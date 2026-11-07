@@ -30,7 +30,6 @@ Per garantire l'integrità del microservizio contro attacchi cyber ed intrusioni
 *   **Intrusion Prevention (Fail2Ban):** Monitoraggio costante dei log di sistema per il ban automatico a livello di IPtables degli indirizzi IP che mostrano comportamenti ostili o tentativi di connessione falliti.
 *   **Firewall Perimetrale (UFW):** Politica restrittiva totale (`default deny incoming`). Sono autorizzate esclusivamente le porte essenziali per il funzionamento e la gestione del servizio:
     *   `2224/tcp` (Accesso SSH Protetto)
-    *   `8000/tcp` (FastAPI Test)
     *   `80/tcp` & `443/tcp` (Traffico Web HTTP/HTTPS gestito da Nginx)
 
 ---
@@ -63,9 +62,10 @@ Description=Uvicorn Instance per API Web PWA Detector
 After=network.target
 
 [Service]
-User=root
-WorkingDirectory=/root/tuo_progetto
-ExecStart=/usr/local/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 4
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/pwa_detector
+ExecStart=/var/www/pwa_detector/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 4
 Restart=always
 
 [Install]
@@ -87,10 +87,10 @@ server {
 
     location / {
         proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
@@ -109,7 +109,7 @@ sudo certbot --nginx -d api.tuosito.it
 L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interattiva ed esplorabile (Swagger UI) viene autogenerata dal framework all'indirizzo `/docs`.
 
 **Richiesta d'esempio:**
-`GET https://tuosito.it`
+`GET https://api.tuosito.it/api/v1/check-pwa?url=europa.eu`
 
 **Risposta del server (Payload JSON):**
 ```json
@@ -121,6 +121,14 @@ L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interat
     "service_worker_detected": true
 }
 ```
+
+---
+
+## ⚠️ Known Limitations
+
+*   **Script esterni:** il Service Worker viene cercato solo negli script inline della pagina. Se la registrazione è in un file `.js` esterno, `service_worker_detected` può essere `false` (falso negativo). Il verdetto `is_pwa` dipende comunque solo dal manifest valido.
+*   **Rendering:** non viene eseguito JavaScript; il tool privilegia velocità e sicurezza rispetto a un browser headless.
+*   **Codice:** l'app è in `pwa-detector-engine/` (API, front-end, file di deploy e test).
 
 ---
 

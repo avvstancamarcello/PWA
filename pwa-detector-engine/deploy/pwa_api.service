@@ -1,0 +1,17 @@
+[Unit]
+Description=Uvicorn Instance per API Web PWA Detector
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/pwa_detector
+ExecStart=/var/www/pwa_detector/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 4
+Restart=always
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
