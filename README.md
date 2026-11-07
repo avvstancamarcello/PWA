@@ -11,4 +11,8 @@ Questo progetto nasce da un'intuizione innovativa volta a colmare una carenza de
 ## 🏗️ Architettura Completa del Sistema
 
 Il sistema è stato ingegnerizzato seguendo i più rigorosi standard enterprise, segmentato in quattro livelli indipendenti e protetti:
+[ FRONT-END CLIENT ]  ──( Chiamata HTTPS )──► [ NGINX REVERSE PROXY ]
+│ (Porta 443 -> 8000)
+▼
+[ SYSTEMD SERVICE ]   ◄──( Auto-Restart )─── [ UVICORN / FASTAPI ENGINE ]
 
