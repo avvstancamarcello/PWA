@@ -125,6 +125,8 @@ def safe_get(url: str, max_bytes: int = MAX_BYTES) -> tuple[str, str]:
             )
         try:
             with requests.Session() as session:
+                # Ignora i proxy d'ambiente: eluderebbero il pinning dell'IP
+                session.trust_env = False
                 adapter = PinnedAdapter(ip)
                 session.mount("http://", adapter)
                 session.mount("https://", adapter)
