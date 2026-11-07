@@ -14,7 +14,7 @@ PWA_HTML = """<html><head><link rel="manifest" href="/m.json"></head>
 
 def fake_getaddrinfo(host, port, *a, **k):
     ips = {"public.test": "93.184.216.34", "evil.test": "127.0.0.1"}
-    return [(socket.AF_INET, 0, 0, "", (ips.get(host, host), 0))]
+    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ips.get(host, host), port or 0))]
 
 
 class FakeResp:
@@ -44,11 +44,11 @@ def net():
 
 
 def route(mapping):
-    def _get(url, **kw):
+    def _get(self, url, **kw):
         assert kw.get("allow_redirects") is False
         return mapping[url]
 
-    return mock.patch("requests.get", _get)
+    return mock.patch("requests.Session.get", _get)
 
 
 def test_pwa_true():
@@ -98,3 +98,49 @@ def test_size_limit():
 def test_cors_no_credentials():
     r = client.get("/api/v1/check-pwa", params={"url": "http://evil.test"}, headers={"Origin": "https://x.it"})
     assert "access-control-allow-credentials" not in r.headers
+
+
+def test_dns_pinning_connects_to_validated_ip():
+    import http.server
+    import threading
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b"pinned-ok"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Host", self.headers["Host"])
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    port = srv.server_address[1]
+
+    # "pinned.test" non è risolvibile: la richiesta riesce solo se si usa l'IP pinnato.
+    with mock.patch.object(engine, "resolve_public_ip", lambda u: "127.0.0.1"), \
+         mock.patch.object(engine, "ALLOWED_PORTS", {port}):
+        final, text = engine.safe_get(f"http://pinned.test:{port}/")
+    srv.shutdown()
+    assert text == "pinned-ok"
+
+
+def test_pinning_ignores_second_dns_answer():
+    # Il primo controllo vede un IP pubblico, un eventuale secondo lookup darebbe 127.0.0.1:
+    # con il pinning la connessione parte comunque verso l'IP validato (non raggiungibile qui).
+    calls = []
+
+    def gai(host, port, *a, **k):
+        calls.append(host)
+        ip = "93.184.216.34" if len(calls) == 1 else "127.0.0.1"
+        return [(socket.AF_INET, 0, 0, "", (ip, 0))]
+
+    with mock.patch("socket.getaddrinfo", gai), \
+         mock.patch.object(engine, "create_connection") as cc:
+        cc.side_effect = OSError("blocked")
+        with pytest.raises(engine.HTTPException):
+            engine.safe_get("http://rebind.test")
+    assert cc.call_args[0][0][0] == "93.184.216.34"
