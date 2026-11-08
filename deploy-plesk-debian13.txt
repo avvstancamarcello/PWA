@@ -68,6 +68,8 @@ di eventuali file esistenti che verrebbero sovrascritti:
 
     cp /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/index.html \
        /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/manifest.webmanifest \
+       /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/sitemap.xml \
+       /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/robots.txt \
        /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/sw.js \
        /var/www/vhosts/DOMINIO/httpdocs/
 
@@ -186,7 +188,7 @@ Come utente di sistema del dominio:
     git pull --ff-only origin main
     cd pwa-detector-engine
     .venv/bin/pip install -r requirements.txt
-    cp frontend/index.html frontend/manifest.webmanifest /var/www/vhosts/DOMINIO/httpdocs/
+    cp frontend/index.html frontend/manifest.webmanifest frontend/sitemap.xml frontend/robots.txt /var/www/vhosts/DOMINIO/httpdocs/
     cp -r frontend/pwa-icons /var/www/vhosts/DOMINIO/httpdocs/
     cp frontend/sw.js /var/www/vhosts/DOMINIO/httpdocs/
 
