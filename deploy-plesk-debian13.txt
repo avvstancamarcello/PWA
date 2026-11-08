@@ -73,7 +73,7 @@ di eventuali file esistenti che verrebbero sovrascritti:
 
 Poi copia le icone:
 
-    cp -r /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/icons \
+    cp -r /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/pwa-icons \
           /var/www/vhosts/DOMINIO/httpdocs/
 
 Modifica httpdocs/index.html e imposta la base API vuota, affinché il
@@ -187,7 +187,7 @@ Come utente di sistema del dominio:
     cd pwa-detector-engine
     .venv/bin/pip install -r requirements.txt
     cp frontend/index.html frontend/manifest.webmanifest /var/www/vhosts/DOMINIO/httpdocs/
-    cp -r frontend/icons /var/www/vhosts/DOMINIO/httpdocs/
+    cp -r frontend/pwa-icons /var/www/vhosts/DOMINIO/httpdocs/
     cp frontend/sw.js /var/www/vhosts/DOMINIO/httpdocs/
 
 Dopo la copia, verifica che in httpdocs/index.html sia ancora presente
