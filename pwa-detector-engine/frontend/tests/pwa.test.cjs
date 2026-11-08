@@ -20,6 +20,18 @@ test("manifest contains standalone identity and real PNG icons", () => {
     assert.ok(manifest.icons.some((icon) => icon.purpose === "maskable"));
 });
 
+test("sitemap indexes only the canonical public homepage", () => {
+    const sitemap = fs.readFileSync(path.join(root, "sitemap.xml"), "utf8");
+    const page = fs.readFileSync(path.join(root, "index.html"), "utf8");
+    const robots = fs.readFileSync(path.join(root, "robots.txt"), "utf8");
+    assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
+    assert.deepEqual([...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]), [
+        "https://pwaradar.it/"
+    ]);
+    assert.match(page, /<link rel="canonical" href="https:\/\/pwaradar\.it\/">/);
+    assert.match(robots, /^Sitemap: https:\/\/pwaradar\.it\/sitemap\.xml$/m);
+});
+
 function worker() {
     const handlers = {};
     const entries = new Map();

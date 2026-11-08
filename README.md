@@ -212,6 +212,9 @@ dal Service Worker.
 
 Il verdetto visualizzato indica il rilevamento essenziale del manifest,
 non certifica installabilità o sicurezza del sito esaminato.
+La sitemap (`sitemap.xml`) elenca solo la homepage canonica e `robots.txt`
+la pubblica ai crawler; inviarla a Google Search Console non garantisce
+indicizzazione o posizionamento.
 I test della shell si eseguono senza dipendenze aggiuntive con:
 
 ```bash
