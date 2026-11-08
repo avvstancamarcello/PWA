@@ -1,0 +1,162 @@
+Guida rapida: PWA Detector su Debian 13 con Plesk
+================================================
+
+Questa guida pubblica il frontend statico con Plesk e serve l'API FastAPI
+con Uvicorn dietro Nginx. Sostituisci i segnaposto maiuscoli con i valori
+reali del tuo server e dominio. I percorsi e l'utente di sistema vanno
+verificati in Plesk: non usare /root per eseguire il servizio.
+
+1. Prerequisiti Plesk e DNS
+---------------------------
+
+- Aggiungi il dominio in Plesk e fai puntare il DNS all'IP della VPS.
+- In Plesk individua l'utente di sistema del dominio e la document root,
+  normalmente /var/www/vhosts/DOMINIO/httpdocs.
+- Verifica che il firewall del provider consenta SSH e le porte 80 e 443.
+- Non installare o riconfigurare Nginx separatamente da Plesk.
+
+Come amministratore, installa i prerequisiti:
+
+    apt update
+    apt install git python3-venv
+
+2. Clona il repository fuori dalla cartella pubblica
+----------------------------------------------------
+
+Accedi via SSH come utente di sistema del dominio (o usa sudo -u
+UTENTE_DOMINIO -H per i comandi). La cartella privata tipica è
+/var/www/vhosts/DOMINIO/private, ma verifica il percorso effettivo in Plesk.
+
+Se private non esiste, falla creare dall'amministratore con proprietario
+e gruppo corrispondenti all'utente del dominio, prima di procedere:
+
+    install -d -o UTENTE_DOMINIO -g GRUPPO_DOMINIO /var/www/vhosts/DOMINIO/private
+
+    cd /var/www/vhosts/DOMINIO/private
+    git clone https://github.com/avvstancamarcello/PWA.git
+    cd PWA/pwa-detector-engine
+
+La directory che hai adesso sotto /root/PWA non è adatta al servizio:
+normalmente l'utente di sistema Plesk non può accedere ai file sotto /root.
+Non collocare il repository completo dentro httpdocs, che è pubblica.
+
+3. Ambiente Python e test locale
+--------------------------------
+
+Come utente di sistema del dominio:
+
+    cd /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine
+    python3 -m venv .venv
+    .venv/bin/python -m pip install --upgrade pip
+    .venv/bin/pip install -r requirements.txt pytest httpx
+    .venv/bin/pytest -v tests
+
+Verifica l'avvio locale (interrompilo con Ctrl+C dopo la prova):
+
+    .venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000
+
+Da un altro terminale SSH:
+
+    curl http://127.0.0.1:8000/docs
+
+4. Pubblica il frontend statico
+-------------------------------
+
+Copia solo la pagina HTML nella document root del dominio:
+
+    cp /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/index.html \
+       /var/www/vhosts/DOMINIO/httpdocs/index.html
+
+Modifica httpdocs/index.html e imposta la base API vuota, affinché il
+frontend usi lo stesso dominio:
+
+    const API_BASE = "";
+
+Non modificare la copia nel repository senza motivo. Dopo aver ricopiato
+il file per un aggiornamento, ricontrolla questa impostazione.
+
+5. Crea un servizio systemd per l'API
+-------------------------------------
+
+Verifica l'utente e il gruppo effettivi:
+
+    id UTENTE_DOMINIO
+
+Crea /etc/systemd/system/pwa_api.service come amministratore. Sostituisci
+UTENTE_DOMINIO, GRUPPO_DOMINIO e i percorsi con quelli verificati:
+
+    [Unit]
+    Description=PWA Detector API
+    After=network.target
+
+    [Service]
+    User=UTENTE_DOMINIO
+    Group=GRUPPO_DOMINIO
+    WorkingDirectory=/var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine
+    ExecStart=/var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 2
+    Restart=always
+    NoNewPrivileges=true
+    PrivateTmp=true
+
+    [Install]
+    WantedBy=multi-user.target
+
+Attiva e controlla il servizio:
+
+    systemctl daemon-reload
+    systemctl enable --now pwa_api.service
+    systemctl status pwa_api.service
+    journalctl -u pwa_api.service -n 100 --no-pager
+
+Uvicorn deve ascoltare solo su 127.0.0.1. Non aprire la porta 8000
+al traffico Internet.
+
+6. Configura il reverse proxy in Plesk
+--------------------------------------
+
+In Plesk apri Domini > DOMINIO > Apache & nginx Settings. Nel campo
+"Additional nginx directives" aggiungi:
+
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+Salva e applica. Se Plesk segnala conflitti, rimuovi la direttiva e chiedi
+al provider o all'amministratore Plesk di configurare il proxy. Non
+sovrascrivere a mano i file di configurazione gestiti da Plesk.
+
+7. HTTPS e verifica dall'esterno
+-------------------------------
+
+In Plesk installa un certificato SSL/TLS per il dominio (ad esempio
+Let's Encrypt) e attiva il reindirizzamento HTTPS. Poi prova:
+
+    curl -G "https://DOMINIO/api/v1/check-pwa" \
+      --data-urlencode "url=europa.eu"
+
+Apri inoltre https://DOMINIO nel browser e verifica che la pagina funzioni.
+
+8. Aggiornamenti successivi
+---------------------------
+
+Come utente di sistema del dominio:
+
+    cd /var/www/vhosts/DOMINIO/private/PWA
+    git pull --ff-only origin main
+    cd pwa-detector-engine
+    .venv/bin/pip install -r requirements.txt
+    cp frontend/index.html /var/www/vhosts/DOMINIO/httpdocs/index.html
+
+Dopo la copia, verifica che in httpdocs/index.html sia ancora presente
+const API_BASE = ""; quindi, come amministratore:
+
+    systemctl restart pwa_api.service
+    systemctl status pwa_api.service
+
+Il pull aggiorna il repository, ma non copia automaticamente il frontend
+né riavvia l'API. Non salvare password, chiavi private o file .venv nel
+repository.
