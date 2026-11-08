@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Scopri cosa controlla PWA Radar, come interpretare il risultato e quali sono i limiti della verifica automatica delle Progressive Web App.">
+    <meta name="theme-color" content="#3498db">
+    <link rel="canonical" href="https://pwaradar.it/metodologia.html">
+    <title>Come funziona PWA Radar: metodo e limiti</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 24px 16px; background: #f4f7f6; color: #202a31; font: 16px/1.65 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+        main { max-width: 860px; margin: 0 auto; padding: clamp(22px, 5vw, 48px); background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,.1); }
+        h1, h2 { line-height: 1.25; }
+        h1 { margin-top: 0; }
+        h2 { margin-top: 2em; }
+        a { color: #176b91; }
+        footer { margin-top: 36px; border-top: 1px solid #d7e0e5; padding-top: 18px; }
+        @media (max-width: 480px) { body { padding: 12px; } }
+    </style>
+</head>
+<body>
+<main>
+    <p><a href="./">← PWA Radar</a></p>
+    <h1>Come funziona PWA Radar</h1>
+    <p>PWA Radar è uno strumento di screening che esamina da remoto alcuni segnali tecnici associati alle Progressive Web App (PWA). Serve a orientare una verifica, non a certificare un sito.</p>
+
+    <h2>Cosa controlla</h2>
+    <p>Inserito un indirizzo, il servizio scarica la pagina e controlla:</p>
+    <ul>
+        <li>se il codice HTML contiene un tag <code>&lt;link rel="manifest"&gt;</code> con un indirizzo;</li>
+        <li>se il manifest collegato è raggiungibile, contiene JSON leggibile ed è un oggetto con almeno uno tra <code>name</code>, <code>short_name</code> e <code>start_url</code>;</li>
+        <li>se gli script <em>inline</em> della pagina contengono le stringhe <code>serviceWorker.register</code> o <code>navigator.serviceWorker</code>.</li>
+    </ul>
+    <p>La richiesta HTTP segue i redirect manualmente. Il servizio accetta solo HTTP/HTTPS sulle porte web, rifiuta indirizzi IP non pubblici, collega la richiesta all’IP pubblico validato, non usa proxy configurati nell’ambiente e limita redirect e byte scaricati.</p>
+
+    <h2>Come leggere il verdetto</h2>
+    <p><strong>“Manifest PWA rilevato”</strong> significa che il tag è stato trovato e che il file ha superato il controllo essenziale descritto sopra. Non è un audit completo del manifest: non verifica tutti i campi, le icone richieste dai diversi browser, il contenuto o la disponibilità di ogni risorsa, né le condizioni d’installazione.</p>
+    <p><strong>“Manifest PWA valido non rilevato”</strong> significa che questo controllo non ha confermato un manifest che soddisfi quel criterio minimo. Non dimostra che il sito non possa essere installato: una scansione può non vedere contenuti generati da JavaScript, redirect o configurazioni che dipendono dal browser.</p>
+    <p>Le voci della checklist sono risultati distinti. Un Service Worker non rilevato non annulla il rilevamento del manifest e non prova che il Service Worker sia assente.</p>
+
+    <h2>Perché il Service Worker può non essere rilevato</h2>
+    <p>PWA Radar non esegue JavaScript e cerca gli indicatori solo negli script inline ricevuti nel codice HTML. Non scarica né analizza i file JavaScript esterni, non osserva le richieste del browser e non interroga il registro dei Service Worker. Può quindi produrre un falso negativo per questo indicatore.</p>
+
+    <h2>Installabilità: verifica nel browser</h2>
+    <p>I criteri e l’esperienza d’installazione variano secondo browser, versione, sistema operativo e contesto. Per esempio, le versioni moderne di Chrome possono offrire l’installazione senza richiedere un Service Worker; il Service Worker resta utile per esperienze offline e altre funzioni. Consulta i <a href="https://developer.chrome.com/blog/update-install-criteria">criteri d’installazione di Chrome</a>.</p>
+    <p>Per sapere se un sito si può installare nel tuo caso, controlla il menu o il pulsante d’installazione del browser e, se necessario, usa i suoi strumenti di sviluppo. L’HTTPS, il manifest effettivo, le icone e altri requisiti possono influenzare il risultato. Anche il pulsante visibile in un browser non prova che lo stesso sito sia installabile ovunque.</p>
+
+    <h2>Esempio: Europol</h2>
+    <p>In un test condiviso per questo progetto, Chrome mostrava l’opzione <strong>“Installa”</strong> visitando <code>https://www.europol.europa.eu</code>. La scansione PWA Radar riportata per il sito aveva rilevato un manifest valido secondo il criterio essenziale e non aveva rilevato la registrazione del Service Worker negli script inline.</p>
+    <p>Le due osservazioni non sono in contraddizione: Chrome può consentire l’installazione senza che PWA Radar rilevi un Service Worker. Lo screenshot documenta il comportamento mostrato da quel browser in quel contesto; non stabilisce quali tecnologie interne usi Europol, perché siano state adottate o quale sia l’esperienza su altri dispositivi. Le spiegazioni sulle intenzioni degli sviluppatori non si possono dedurre da questo test.</p>
+
+    <h2>Ambito e sicurezza</h2>
+    <p>PWA Radar non esegue la pagina esaminata e non determina se sia affidabile, autentica, priva di phishing o sicura. Le protezioni delle richieste in uscita riducono alcuni rischi per il servizio, ma non costituiscono una valutazione di sicurezza del sito sottoposto a verifica.</p>
+    <p>Il risultato è un controllo automatico e limitato, soggetto a cambiamenti del sito e alle risposte della rete. Non è una certificazione né sostituisce un controllo manuale o gli strumenti del browser.</p>
+
+    <footer>
+        <p><a href="./">Prova PWA Radar</a> · <a href="https://github.com/avvstancamarcello/PWA">Codice sorgente e dettagli tecnici</a></p>
+    </footer>
+</main>
+</body>
+</html>

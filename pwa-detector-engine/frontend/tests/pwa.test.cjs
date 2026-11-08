@@ -23,12 +23,19 @@ test("manifest contains standalone identity and real PNG icons", () => {
 test("sitemap indexes only the canonical public homepage", () => {
     const sitemap = fs.readFileSync(path.join(root, "sitemap.xml"), "utf8");
     const page = fs.readFileSync(path.join(root, "index.html"), "utf8");
+    const methodology = fs.readFileSync(path.join(root, "metodologia.html"), "utf8");
     const robots = fs.readFileSync(path.join(root, "robots.txt"), "utf8");
     assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
     assert.deepEqual([...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]), [
-        "https://pwaradar.it/"
+        "https://pwaradar.it/",
+        "https://pwaradar.it/metodologia.html"
     ]);
     assert.match(page, /<link rel="canonical" href="https:\/\/pwaradar\.it\/">/);
+    assert.match(page, /href="\.\/metodologia\.html"/);
+    assert.match(methodology, /<link rel="canonical" href="https:\/\/pwaradar\.it\/metodologia\.html">/);
+    assert.match(methodology, /Europol/);
+    assert.match(methodology, /non esegue JavaScript/i);
+    assert.match(methodology, /non prova che il Service Worker sia assente/i);
     assert.match(robots, /^Sitemap: https:\/\/pwaradar\.it\/sitemap\.xml$/m);
 });
 
@@ -79,11 +86,11 @@ function worker() {
     return { context, entries, deleted, dispatch, request };
 }
 
-test("install precaches existing shell; activate deletes only obsolete app caches", async () => {
+test("install precaches existing shell; activate deletes obsolete app caches", async () => {
     const w = worker();
     await w.dispatch("install");
     await w.dispatch("activate");
-    assert.deepEqual(w.deleted, ["pwa-radar-shell-v0"]);
+    assert.deepEqual(w.deleted, ["pwa-radar-shell-v0", "pwa-radar-shell-v1"]);
 });
 
 test("API, cross-origin, POST and unknown resources bypass cache even offline", async () => {

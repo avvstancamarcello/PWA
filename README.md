@@ -212,9 +212,13 @@ dal Service Worker.
 
 Il verdetto visualizzato indica il rilevamento essenziale del manifest,
 non certifica installabilità o sicurezza del sito esaminato.
-La sitemap (`sitemap.xml`) elenca solo la homepage canonica e `robots.txt`
-la pubblica ai crawler; inviarla a Google Search Console non garantisce
-indicizzazione o posizionamento.
+La sitemap (`sitemap.xml`) elenca la homepage e la pagina metodologica
+canonica; `robots.txt` la pubblica ai crawler. Inviare la sitemap a
+Google Search Console non garantisce indicizzazione o posizionamento.
+La metodologia pubblica, i limiti del rilevamento e l'esempio Europol sono
+descritti in `pwa-detector-engine/frontend/metodologia.html`; pubblica anche
+questa pagina nella document root. Non attribuisce intenzioni tecniche a
+Europol sulla base del solo pulsante d'installazione.
 I test della shell si eseguono senza dipendenze aggiuntive con:
 
 ```bash
