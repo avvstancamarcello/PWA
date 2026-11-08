@@ -130,6 +130,45 @@ sudo certbot --nginx -d api.tuosito.it
 
 ---
 
+## 🔄 Aggiornare e distribuire tramite Git
+
+### Dal computer di sviluppo
+
+Dopo aver modificato i file, esegui i test e pubblica le modifiche sul branch `main` di GitHub:
+
+```bash
+git status
+git switch main
+git pull --rebase origin main
+# Esegui i test del progetto
+git add README.md
+git commit -m "docs: update README"
+git push origin main
+```
+
+Sostituisci `README.md` con i percorsi dei file modificati. Se hai modifiche locali non ancora salvate, completale con un commit oppure mettile da parte prima di cambiare branch o fare pull.
+
+### Sulla VPS
+
+Il push su GitHub **non distribuisce automaticamente** l'app sulla VPS. Per aggiornare il checkout del server:
+
+```bash
+cd /percorso/del/progetto
+git switch main
+git pull --ff-only origin main
+```
+
+Dopo aver aggiornato il codice dell'API, se il servizio `systemd` è configurato e attivo, riavvialo e controllane lo stato:
+
+```bash
+sudo systemctl restart pwa_api.service
+sudo systemctl status pwa_api.service
+```
+
+Sostituisci `/percorso/del/progetto` con la directory effettiva del repository sul server. Non aggiungere al repository ambienti virtuali, password, chiavi private o altri segreti.
+
+---
+
 ## 📬 Specifiche dell'Endpoint API (Esempio di Risposta JSON)
 
 L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interattiva ed esplorabile (Swagger UI) viene autogenerata dal framework all'indirizzo `/docs`.
