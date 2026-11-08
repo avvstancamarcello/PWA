@@ -22,6 +22,32 @@ Il sistema è stato ingegnerizzato seguendo i più rigorosi standard enterprise,
 
 ---
 
+## 🔍 Analisi Comparativa e Ambito del Progetto
+
+Il **PWA Detector Engine** offre un controllo remoto e automatizzabile di alcuni elementi strutturali associati alle PWA. Si affianca agli strumenti per sviluppatori e ai servizi di analisi o creazione PWA, che rispondono a esigenze diverse; non intende sostituirli né certificare che un sito sia sicuro o installabile in ogni browser.
+
+### 📊 Confronto orientativo
+
+| Aspetto | DevTools del browser | PWABuilder | Lighthouse | PWA Detector Engine |
+| :--- | :--- | :--- | :--- | :--- |
+| **Uso tipico** | Ispezione e debug manuale durante lo sviluppo. | Analisi e strumenti per creare o distribuire PWA. | Audit automatici di pagine web, incluse verifiche PWA. | Verifica remota via API della presenza e validità di alcuni elementi PWA. |
+| **Modalità** | Interattiva, nel browser dello sviluppatore. | Servizio web e strumenti di sviluppo. | Audit avviato tramite strumenti compatibili. | Endpoint HTTP utilizzabile da un client o da un'integrazione. |
+| **Controlli del progetto** | Dipendono dagli strumenti del browser e dalla pagina aperta. | Dipendono dalle funzioni offerte dal servizio. | Valutazione più ampia secondo gli audit Lighthouse disponibili. | Tag manifest, validità strutturale essenziale del manifest e parole chiave per la registrazione del Service Worker negli script inline. |
+| **Controlli di rete del progetto** | Il browser gestisce le richieste della pagina. | Dipendono dall'implementazione del servizio. | Dipendono dal contesto in cui viene eseguito l'audit. | Rifiuta destinazioni non pubbliche, valida ogni redirect, applica pinning dell'IP e limita la dimensione della risposta. |
+| **Limiti principali** | Richiede accesso manuale e competenze tecniche. | Non è l'obiettivo di questa API. | Non è un servizio API di questo progetto. | Non esegue JavaScript né determina affidabilità, assenza di phishing o installabilità effettiva. |
+
+Il confronto è **orientativo**: descrive scopi e controlli di questo progetto, non costituisce un test indipendente delle funzionalità o della sicurezza degli altri strumenti.
+
+### 💡 Quale contributo offre il progetto
+
+1. **Controllo automatizzabile:** l'endpoint permette a un'interfaccia o a un altro client di richiedere una verifica senza dover aprire manualmente i DevTools.
+2. **Risultato leggibile:** la risposta JSON espone separatamente il tag manifest, la validità essenziale del file e il rilevamento basato sugli script inline.
+3. **Richieste in uscita con protezioni:** l'engine valida gli indirizzi IP risolti, evita proxy d'ambiente, mantiene il pinning dell'IP per la connessione, controlla i redirect uno per uno e limita i byte letti.
+
+Questi controlli riducono alcuni rischi lato server, ma **non rendono l'applicazione un sistema anti-phishing né attestano che il sito esaminato sia sicuro**. Il rilevamento del Service Worker è limitato agli script inline e il verdetto PWA si basa sulla validità strutturale essenziale del manifest, non sull'esecuzione o sull'installabilità reale nel browser.
+
+---
+
 ## 🔒 Hardening & Protocolli di Sicurezza dell'Infrastruttura
 
 Per garantire l'integrità del microservizio contro attacchi cyber ed intrusioni, l'infrastruttura di rete applica tre livelli di blindatura:
