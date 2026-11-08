@@ -199,7 +199,7 @@ L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interat
 
 Il frontend in `pwa-detector-engine/frontend/` include manifest, icone PNG
 e Service Worker. Pubblica `index.html`, `manifest.webmanifest`, `sw.js`
-e la cartella `icons/` su HTTPS (non la cartella `tests/`);
+e la cartella `pwa-icons/` su HTTPS (non la cartella `tests/`);
 la base API è vuota per usare lo stesso dominio. Per Plesk segui
 `deploy-plesk-debian13.txt`, non i comandi di installazione nginx generici.
 

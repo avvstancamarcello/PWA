@@ -4,9 +4,9 @@ const SHELL_PATHS = [
     "./",
     "./index.html",
     "./manifest.webmanifest",
-    "./icons/icon-192.png",
-    "./icons/icon-512.png",
-    "./icons/icon-maskable-512.png"
+    "./pwa-icons/icon-192.png",
+    "./pwa-icons/icon-512.png",
+    "./pwa-icons/icon-maskable-512.png"
 ];
 const shellURLs = new Set(SHELL_PATHS.map((path) => new URL(path, self.registration.scope).href));
 
