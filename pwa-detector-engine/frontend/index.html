@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PWA Detector Engine</title>
+    <title>PWA Radar</title>
+    <meta name="theme-color" content="#3498db">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100dvh; margin: 0; padding: 16px; }
         .search-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 450px; width: 100%; }
         input[type="text"] { width: 70%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; outline: none; }
         input[type="text"]:focus { border-color: #3498db; }
@@ -15,20 +19,37 @@
         .pwa-true { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
         .pwa-false { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
         .details { margin-top: 10px; font-size: 14px; font-weight: normal; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px; }
+        .result-badge { overflow-wrap: anywhere; }
+        .search-form { display: flex; gap: 8px; }
+        .search-form input { flex: 1; min-width: 0; width: auto; }
+        button { margin-left: 0; }
+        button:disabled { opacity: 0.6; cursor: wait; }
+        .app-status, .install-help { font-size: 14px; }
+        #installBtn { margin-top: 16px; }
+        [hidden] { display: none !important; }
+        @media (max-width: 360px) {
+            .search-container { padding: 20px; }
+            .search-form { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
 <div class="search-container">
-    <h2>Verifica Struttura PWA</h2>
-    <p>Inserisci un dominio per controllare se è un'App Web installabile</p>
-    <input type="text" id="urlInput" placeholder="es. europa.eu">
-    <button id="searchBtn">Cerca</button>
-    <div id="resultBadge" class="result-badge"></div>
+    <h1>PWA Radar</h1>
+    <p>Verifica gli indicatori PWA di un sito. Il risultato non certifica l'installabilità o la sicurezza.</p>
+    <div class="search-form">
+        <input type="text" id="urlInput" placeholder="es. europa.eu" aria-label="Dominio o URL da verificare" inputmode="url" autocapitalize="none" spellcheck="false">
+        <button id="searchBtn">Cerca</button>
+    </div>
+    <p class="app-status" id="appStatus" role="status"></p>
+    <button id="installBtn" hidden>Installa PWA Radar</button>
+    <p class="install-help" id="installHelp">Per installare l'app, usa il menu del browser se disponibile. Su iPhone/iPad: Safari → Condividi → Aggiungi alla schermata Home. Le verifiche richiedono Internet.</p>
+    <div id="resultBadge" class="result-badge" role="status"></div>
 </div>
 
 <script>
-// Modificare con il dominio reale dell'API
-const API_BASE = "https://api.tuosito.it";
+// Lascia vuoto per l'API sullo stesso dominio.
+const API_BASE = "";
 
 const badge = document.getElementById("resultBadge");
 
@@ -44,11 +65,18 @@ async function checkPWA() {
         alert("Per favore, inserisci un URL valido.");
         return;
     }
+    if (!navigator.onLine) {
+        badge.style.display = "block";
+        badge.className = "result-badge pwa-false";
+        badge.textContent = "Sei offline. Riconnettiti per eseguire una nuova verifica.";
+        return;
+    }
 
     const endpoint = `${API_BASE}/api/v1/check-pwa?url=${encodeURIComponent(urlInput)}`;
     badge.style.display = "block";
     badge.className = "result-badge";
     badge.textContent = "⏳ Scansione in corso...";
+    document.getElementById("searchBtn").disabled = true;
 
     try {
         const response = await fetch(endpoint);
@@ -60,7 +88,7 @@ async function checkPWA() {
         const data = await response.json();
 
         badge.className = "result-badge " + (data.is_pwa ? "pwa-true" : "pwa-false");
-        badge.textContent = data.is_pwa ? "🛡️ VERDETTO: PWA ESISTENTE" : "🔴 VERDETTO: NO PWA";
+        badge.textContent = data.is_pwa ? "✅ Manifest PWA rilevato" : "🔴 Manifest PWA valido non rilevato";
 
         const details = document.createElement("div");
         details.className = "details";
@@ -69,18 +97,79 @@ async function checkPWA() {
         details.append(
             title,
             row(data.manifest_tag_found, 'Tag <link rel="manifest"> rilevato'),
-            row(data.manifest_file_valid, "File manifest integro e valido"),
-            row(data.service_worker_detected, "Registrazione Service Worker rilevata")
+            row(data.manifest_file_valid, "Manifest valido secondo il controllo essenziale"),
+            row(data.service_worker_detected, "Registrazione Service Worker rilevata negli script inline")
         );
         badge.appendChild(details);
     } catch (error) {
         badge.className = "result-badge pwa-false";
         badge.textContent = "❌ Errore durante la verifica: " + error.message;
+    } finally {
+        document.getElementById("searchBtn").disabled = false;
     }
 }
 
 document.getElementById("searchBtn").addEventListener("click", checkPWA);
 document.getElementById("urlInput").addEventListener("keydown", (e) => { if (e.key === "Enter") checkPWA(); });
+
+const appStatus = document.getElementById("appStatus");
+const installBtn = document.getElementById("installBtn");
+const installHelp = document.getElementById("installHelp");
+let installPrompt = null;
+let serviceWorkerError = "";
+
+function updateStatus() {
+    appStatus.textContent = !navigator.onLine
+        ? "Sei offline: puoi aprire l'app, ma le verifiche richiedono Internet."
+        : serviceWorkerError;
+}
+
+window.addEventListener("online", updateStatus);
+window.addEventListener("offline", updateStatus);
+updateStatus();
+
+const standalone = window.matchMedia("(display-mode: standalone)");
+function updateInstallHelp() {
+    const installed = standalone.matches || navigator.standalone === true;
+    installHelp.hidden = installed;
+    installBtn.hidden = installed || !installPrompt;
+}
+standalone.addEventListener("change", updateInstallHelp);
+updateInstallHelp();
+
+window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    installPrompt = event;
+    updateInstallHelp();
+});
+installBtn.addEventListener("click", async () => {
+    if (!installPrompt) return;
+    const prompt = installPrompt;
+    installPrompt = null;
+    installBtn.hidden = true;
+    try {
+        await prompt.prompt();
+        await prompt.userChoice;
+    } catch (error) {
+        appStatus.textContent = "Installazione non riuscita: " + error.message;
+    }
+});
+window.addEventListener("appinstalled", () => {
+    installPrompt = null;
+    installBtn.hidden = true;
+    installHelp.hidden = true;
+    appStatus.textContent = "PWA Radar installata.";
+});
+
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch((error) => {
+        serviceWorkerError = "Modalità offline non disponibile: " + error.message;
+        updateStatus();
+    });
+} else {
+    serviceWorkerError = "Questo browser non supporta la modalità offline.";
+    updateStatus();
+}
 </script>
 </body>
 </html>
