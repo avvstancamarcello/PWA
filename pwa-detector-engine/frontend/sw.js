@@ -1,8 +1,9 @@
 const CACHE_PREFIX = "pwa-radar-shell-";
-const CACHE_NAME = CACHE_PREFIX + "v1";
+const CACHE_NAME = CACHE_PREFIX + "v2";
 const SHELL_PATHS = [
     "./",
     "./index.html",
+    "./metodologia.html",
     "./manifest.webmanifest",
     "./pwa-icons/icon-192.png",
     "./pwa-icons/icon-512.png",
