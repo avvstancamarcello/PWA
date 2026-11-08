@@ -195,17 +195,40 @@ L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interat
 *   **Rendering:** non viene eseguito JavaScript; il tool privilegia velocità e sicurezza rispetto a un browser headless.
 *   **Codice:** l'app è in `pwa-detector-engine/` (API, front-end, file di deploy e test).
 
+## PWA Radar installabile
+
+Il frontend in `pwa-detector-engine/frontend/` include manifest, icone PNG
+e Service Worker. Pubblica `index.html`, `manifest.webmanifest`, `sw.js`
+e la cartella `icons/` su HTTPS (non la cartella `tests/`);
+la base API è vuota per usare lo stesso dominio. Per Plesk segui
+`deploy-plesk-debian13.txt`, non i comandi di installazione nginx generici.
+
+Nei browser compatibili compare il pulsante di installazione oppure puoi
+usare il menu del browser. Su iPhone/iPad usa Safari, Condividi,
+Aggiungi alla schermata Home. L'interfaccia resta disponibile offline
+dopo la prima apertura online e l'attivazione del Service Worker, ma
+**le analisi richiedono Internet**. Le risposte API non sono memorizzate
+dal Service Worker.
+
+Il verdetto visualizzato indica il rilevamento essenziale del manifest,
+non certifica installabilità o sicurezza del sito esaminato.
+I test della shell si eseguono senza dipendenze aggiuntive con:
+
+```bash
+node --test pwa-detector-engine/frontend/tests/*.test.cjs
+```
+
 ---
 
 ## 🎨 Logica di Visualizzazione Front-End (Checklist Grafica)
 Il client JavaScript estrae selettivamente i parametri booleani mappandoli nell'interfaccia utente in questo modo:
 
-*   **`is_pwa: true`** ──► Mostra Badge: **🛡️ VERDETTO: PWA ESISTENTE** (Sito installabile sicuro).
-*   **`is_pwa: false`** ──► Mostra Badge: **🔴 VERDETTO: NO PWA** (Sito standard).
+*   **`is_pwa: true`** ──► **Manifest PWA rilevato** (controllo essenziale, non certificazione).
+*   **`is_pwa: false`** ──► **Manifest PWA valido non rilevato**.
 *   **Checklist di Ispezione Tecnica (Dettaglio Dinamico):**
     *   `manifest_tag_found` ──► ✅ / ❌ Tag `<link rel="manifest">` rilevato
-    *   `manifest_file_valid` ──► ✅ / ❌ File 'manifest.json' integro e valido
-    *   `service_worker_detected` ──► ✅ / ❌ Script Service Worker in esecuzione
+    *   `manifest_file_valid` ──► ✅ / ❌ Manifest valido secondo il controllo essenziale
+    *   `service_worker_detected` ──► ✅ / ❌ Registrazione Service Worker rilevata negli script inline
 
 ---
 *© 2026 Marcello Stanca Project PWA Detector Engine. 

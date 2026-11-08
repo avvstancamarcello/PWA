@@ -33,3 +33,10 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -v tests
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test PWA shell
+        run: node --test frontend/tests/*.test.cjs

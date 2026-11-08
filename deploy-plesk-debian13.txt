@@ -49,7 +49,7 @@ Come utente di sistema del dominio:
     python3 -m venv .venv
     .venv/bin/python -m pip install --upgrade pip
     .venv/bin/pip install -r requirements.txt pytest httpx
-    .venv/bin/pytest -v tests
+    .venv/bin/python -m pytest -v tests
 
 Verifica l'avvio locale (interrompilo con Ctrl+C dopo la prova):
 
@@ -62,18 +62,27 @@ Da un altro terminale SSH:
 4. Pubblica il frontend statico
 -------------------------------
 
-Copia solo la pagina HTML nella document root del dominio:
+Copia i file pubblici della PWA nella document root del dominio,
+con l'utente di sistema del dominio. Conserva prima una copia privata
+di eventuali file esistenti che verrebbero sovrascritti:
 
     cp /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/index.html \
-       /var/www/vhosts/DOMINIO/httpdocs/index.html
+       /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/manifest.webmanifest \
+       /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/sw.js \
+       /var/www/vhosts/DOMINIO/httpdocs/
+
+Poi copia le icone:
+
+    cp -r /var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/frontend/icons \
+          /var/www/vhosts/DOMINIO/httpdocs/
 
 Modifica httpdocs/index.html e imposta la base API vuota, affinché il
 frontend usi lo stesso dominio:
 
     const API_BASE = "";
 
-Non modificare la copia nel repository senza motivo. Dopo aver ricopiato
-il file per un aggiornamento, ricontrolla questa impostazione.
+Questa e' gia' l'impostazione predefinita del frontend. Non modificare
+la copia nel repository senza motivo.
 
 5. Crea un servizio systemd per l'API
 -------------------------------------
@@ -129,6 +138,16 @@ Salva e applica. Se Plesk segnala conflitti, rimuovi la direttiva e chiedi
 al provider o all'amministratore Plesk di configurare il proxy. Non
 sovrascrivere a mano i file di configurazione gestiti da Plesk.
 
+Se nginx non e' installato e Apache ha i moduli proxy e proxy_http attivi,
+usa invece entrambi i campi "Additional directives for HTTP" e
+"Additional directives for HTTPS" del dominio:
+
+    ProxyPass /api/ http://127.0.0.1:8000/api/
+    ProxyPassReverse /api/ http://127.0.0.1:8000/api/
+
+Non inserire sintassi nginx nei campi Apache e non installare un altro
+server web fuori dalla gestione Plesk.
+
 7. HTTPS e verifica dall'esterno
 -------------------------------
 
@@ -140,6 +159,24 @@ Let's Encrypt) e attiva il reindirizzamento HTTPS. Poi prova:
 
 Apri inoltre https://DOMINIO nel browser e verifica che la pagina funzioni.
 
+Il certificato deve coprire ogni nome usato: www.DOMINIO e' distinto da
+DOMINIO. Richiedi www solo dopo averne verificato il DNS.
+
+Installazione PWA:
+- Su browser compatibili usa "Installa PWA Radar", quando compare,
+  oppure la funzione di installazione nel menu del browser.
+- Su iPhone/iPad usa Safari > Condividi > Aggiungi alla schermata Home.
+- Apri una volta la pagina online e attendi l'attivazione del Service Worker.
+  Poi prova l'apertura offline: l'interfaccia deve funzionare, ma una nuova
+  analisi deve richiedere esplicitamente la riconnessione.
+- Le risposte dell'API non vengono mai salvate dal Service Worker.
+- In DevTools > Application controlla manifest, icone e Service Worker.
+  Verifica anche un'installazione reale sul dispositivo di destinazione:
+  la comparsa del pulsante e il supporto dipendono dal browser.
+- Durante gli aggiornamenti pubblica sw.js per ultimo, dopo gli altri file,
+  e chiudi tutte le finestre dell'app per consentire l'attivazione del nuovo
+  worker. Incrementa la versione della cache in sw.js quando cambi la shell.
+
 8. Aggiornamenti successivi
 ---------------------------
 
@@ -149,7 +186,9 @@ Come utente di sistema del dominio:
     git pull --ff-only origin main
     cd pwa-detector-engine
     .venv/bin/pip install -r requirements.txt
-    cp frontend/index.html /var/www/vhosts/DOMINIO/httpdocs/index.html
+    cp frontend/index.html frontend/manifest.webmanifest /var/www/vhosts/DOMINIO/httpdocs/
+    cp -r frontend/icons /var/www/vhosts/DOMINIO/httpdocs/
+    cp frontend/sw.js /var/www/vhosts/DOMINIO/httpdocs/
 
 Dopo la copia, verifica che in httpdocs/index.html sia ancora presente
 const API_BASE = ""; quindi, come amministratore:
