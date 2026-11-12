@@ -39,6 +39,15 @@ test("sitemap indexes only the canonical public homepage", () => {
     assert.match(robots, /^Sitemap: https:\/\/pwaradar\.it\/sitemap\.xml$/m);
 });
 
+test("homepage offers database submission only as a post-detection action", () => {
+    const page = fs.readFileSync(path.join(root, "index.html"), "utf8");
+    assert.match(page, /id="addToDatabaseBtn" type="button" hidden/);
+    assert.match(page, /if \(data\.is_pwa\) \{\s*detectedPwaUrl = data\.url;\s*addToDatabaseBtn\.hidden = false;/);
+    assert.match(page, /fetch\(`\$\{API_BASE\}\/api\/v1\/submissions`, \{\s*method: "POST"/);
+    assert.match(page, /in attesa di revisione/);
+    assert.match(page, /non vengono pubblicate automaticamente/);
+});
+
 function worker() {
     const handlers = {};
     const entries = new Map();

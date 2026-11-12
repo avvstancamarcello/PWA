@@ -1,13 +1,19 @@
 import ipaddress
 import json
+import os
+import sqlite3
 import socket
 import urllib.parse
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterator
 
 import requests
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
@@ -35,8 +41,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -46,6 +52,50 @@ class PWAResponse(BaseModel):
     manifest_tag_found: bool
     manifest_file_valid: bool
     service_worker_detected: bool
+
+
+class PWASubmissionRequest(BaseModel):
+    url: str = Field(..., min_length=1, max_length=2048)
+
+
+class PWASubmissionResponse(BaseModel):
+    url: str
+    status: str
+    already_submitted: bool
+
+
+def database_path() -> Path:
+    configured_path = os.environ.get("PWA_DATABASE_PATH")
+    return Path(configured_path) if configured_path else Path(__file__).parent / "data" / "pwa_radar.sqlite3"
+
+
+def connect_database() -> sqlite3.Connection:
+    path = database_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path, timeout=5)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS pwa_submissions (
+            id INTEGER PRIMARY KEY,
+            url TEXT NOT NULL UNIQUE,
+            submitted_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending_review'
+                CHECK (status IN ('pending_review', 'approved', 'rejected')),
+            manifest_tag_found INTEGER NOT NULL,
+            manifest_file_valid INTEGER NOT NULL,
+            service_worker_detected INTEGER NOT NULL
+        )
+    """)
+    return connection
+
+
+@contextmanager
+def database_connection() -> Iterator[sqlite3.Connection]:
+    connection = connect_database()
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
 
 
 def resolve_public_ip(url: str) -> str | None:
@@ -216,6 +266,54 @@ def check_pwa(url: str = Query(..., max_length=2048, description="URL da scansio
         manifest_tag_found=manifest_tag_found,
         manifest_file_valid=manifest_file_valid,
         service_worker_detected=service_worker_detected,
+    )
+
+
+@app.post(
+    "/api/v1/submissions",
+    response_model=PWASubmissionResponse,
+    status_code=201,
+)
+def submit_pwa(submission: PWASubmissionRequest, response: Response):
+    """Recheck a candidate and store verified PWA URLs for manual review."""
+    result = check_pwa(url=submission.url)
+    if not result.is_pwa:
+        raise HTTPException(
+            status_code=422,
+            detail="Non è stato rilevato un manifest PWA valido; il sito non è stato aggiunto.",
+        )
+
+    canonical_url = urllib.parse.urldefrag(result.url)[0]
+    with database_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT OR IGNORE INTO pwa_submissions (
+                url, submitted_at, manifest_tag_found, manifest_file_valid,
+                service_worker_detected
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                canonical_url,
+                datetime.now(timezone.utc).isoformat(),
+                result.manifest_tag_found,
+                result.manifest_file_valid,
+                result.service_worker_detected,
+            ),
+        )
+        already_submitted = cursor.rowcount == 0
+        row = connection.execute(
+            "SELECT status FROM pwa_submissions WHERE url = ?",
+            (canonical_url,),
+        ).fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=500, detail="Impossibile confermare il salvataggio della segnalazione.")
+
+    response.status_code = 200 if already_submitted else 201
+    return PWASubmissionResponse(
+        url=canonical_url,
+        status=row[0],
+        already_submitted=already_submitted,
     )
 
 

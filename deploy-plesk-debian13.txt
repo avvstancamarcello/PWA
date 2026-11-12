@@ -40,6 +40,11 @@ La directory che hai adesso sotto /root/PWA non è adatta al servizio:
 normalmente l'utente di sistema Plesk non può accedere ai file sotto /root.
 Non collocare il repository completo dentro httpdocs, che è pubblica.
 
+Crea anche una directory dati privata, scrivibile dall'utente del dominio
+e non accessibile dalla document root:
+
+    mkdir -p /var/www/vhosts/DOMINIO/private/PWA-data
+
 3. Ambiente Python e test locale
 --------------------------------
 
@@ -105,6 +110,7 @@ UTENTE_DOMINIO, GRUPPO_DOMINIO e i percorsi con quelli verificati:
     User=UTENTE_DOMINIO
     Group=GRUPPO_DOMINIO
     WorkingDirectory=/var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine
+    Environment=PWA_DATABASE_PATH=/var/www/vhosts/DOMINIO/private/PWA-data/pwa_radar.sqlite3
     ExecStart=/var/www/vhosts/DOMINIO/private/PWA/pwa-detector-engine/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 2
     Restart=always
     NoNewPrivileges=true
@@ -176,6 +182,12 @@ Installazione PWA:
 - In DevTools > Application controlla manifest, icone e Service Worker.
   Verifica anche un'installazione reale sul dispositivo di destinazione:
   la comparsa del pulsante e il supporto dipendono dal browser.
+- Dopo il rilevamento, l'utente può inviare la PWA al database. L'API la
+  ricontrolla e memorizza URL e indicatori tecnici in SQLite, in attesa di
+  revisione manuale; le segnalazioni non sono pubblicate automaticamente.
+- Mantieni `PWA_DATABASE_PATH` nella directory privata creata sopra e
+  verifica che l'utente del servizio possa scriverla. Non copiare il database
+  nella document root né aggiungerlo a Git.
 - Durante gli aggiornamenti pubblica sw.js per ultimo, dopo gli altri file,
   e chiudi tutte le finestre dell'app per consentire l'attivazione del nuovo
   worker. Incrementa la versione della cache in sw.js quando cambi la shell.

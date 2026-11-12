@@ -171,7 +171,7 @@ Sostituisci `/percorso/del/progetto` con la directory effettiva del repository s
 
 ## 📬 Specifiche dell'Endpoint API (Esempio di Risposta JSON)
 
-L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interattiva ed esplorabile (Swagger UI) viene autogenerata dal framework all'indirizzo `/docs`.
+L'interfaccia usa `GET` per le verifiche e `POST` per le segnalazioni al database. Una documentazione interattiva ed esplorabile (Swagger UI) viene autogenerata dal framework all'indirizzo `/docs`.
 
 **Richiesta d'esempio:**
 `GET https://api.tuosito.it/api/v1/check-pwa?url=europa.eu`
@@ -186,6 +186,37 @@ L'interfaccia risponde a chiamate in modalità `GET`. Una documentazione interat
     "service_worker_detected": true
 }
 ```
+
+### Invio al database per revisione
+
+Dopo una scansione che rileva un manifest valido, il frontend offre
+**Aggiungi al database**. L'endpoint `POST /api/v1/submissions` ripete la
+scansione lato server e salva solo URL che superano nuovamente il controllo.
+La risposta indica `pending_review`; URL e indicatori tecnici sono conservati
+in SQLite, senza dati personali. L'endpoint non espone l'elenco e le
+segnalazioni non diventano pubbliche automaticamente.
+
+Il database si trova per impostazione predefinita in
+`pwa-detector-engine/data/pwa_radar.sqlite3`; in produzione imposta
+`PWA_DATABASE_PATH` a una directory privata e persistente, scrivibile
+dall'utente del servizio e fuori dalla document root. Il file è escluso da
+Git. La configurazione systemd di esempio usa `/var/lib/pwa-radar/`;
+per Plesk segui i passaggi in `deploy-plesk-debian13.txt`.
+
+Le segnalazioni in attesa possono essere controllate direttamente nel file
+SQLite, ad esempio:
+
+```sql
+SELECT id, url, submitted_at, status, manifest_file_valid,
+       service_worker_detected
+FROM pwa_submissions
+WHERE status = 'pending_review'
+ORDER BY submitted_at;
+```
+
+Non pubblicare una voce prima di averne verificato manualmente contenuti,
+identità del sito e pertinenza. Il database è una coda di proposte e non un
+registro di autorizzazioni o una certificazione di sicurezza.
 
 ---
 

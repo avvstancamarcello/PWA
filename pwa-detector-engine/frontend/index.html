@@ -28,6 +28,8 @@
         button:disabled { opacity: 0.6; cursor: wait; }
         .app-status, .install-help { font-size: 14px; }
         #installBtn { margin-top: 16px; }
+        #addToDatabaseBtn { margin-top: 16px; background: #2e7d32; }
+        #databaseStatus { font-size: 14px; }
         [hidden] { display: none !important; }
         @media (max-width: 360px) {
             .search-container { padding: 20px; }
@@ -48,6 +50,9 @@
     <button id="installBtn" hidden>Installa PWA Radar</button>
     <p class="install-help" id="installHelp">Per installare l'app, usa il menu del browser se disponibile. Su iPhone/iPad: Safari → Condividi → Aggiungi alla schermata Home. Le verifiche richiedono Internet.</p>
     <div id="resultBadge" class="result-badge" role="status"></div>
+    <button id="addToDatabaseBtn" type="button" hidden>Aggiungi al database</button>
+    <p id="databaseStatus" role="status" aria-live="polite"></p>
+    <p class="app-status">Aggiungendo una PWA, il suo URL e i risultati tecnici della verifica saranno salvati per una revisione manuale. Le segnalazioni non vengono pubblicate automaticamente.</p>
 </div>
 
 <script>
@@ -55,6 +60,9 @@
 const API_BASE = "";
 
 const badge = document.getElementById("resultBadge");
+const addToDatabaseBtn = document.getElementById("addToDatabaseBtn");
+const databaseStatus = document.getElementById("databaseStatus");
+let detectedPwaUrl = null;
 
 function row(ok, text) {
     const div = document.createElement("div");
@@ -64,6 +72,9 @@ function row(ok, text) {
 
 async function checkPWA() {
     const urlInput = document.getElementById("urlInput").value.trim();
+    detectedPwaUrl = null;
+    addToDatabaseBtn.hidden = true;
+    databaseStatus.textContent = "";
     if (!urlInput) {
         alert("Per favore, inserisci un URL valido.");
         return;
@@ -92,6 +103,10 @@ async function checkPWA() {
 
         badge.className = "result-badge " + (data.is_pwa ? "pwa-true" : "pwa-false");
         badge.textContent = data.is_pwa ? "✅ Manifest PWA rilevato" : "🔴 Manifest PWA valido non rilevato";
+        if (data.is_pwa) {
+            detectedPwaUrl = data.url;
+            addToDatabaseBtn.hidden = false;
+        }
 
         const details = document.createElement("div");
         details.className = "details";
@@ -112,8 +127,42 @@ async function checkPWA() {
     }
 }
 
+async function addDetectedPwaToDatabase() {
+    if (!detectedPwaUrl || !navigator.onLine) {
+        databaseStatus.textContent = "Esegui una verifica online prima di aggiungere una PWA.";
+        return;
+    }
+
+    addToDatabaseBtn.disabled = true;
+    databaseStatus.textContent = "Verifica nuovamente e invio per la revisione…";
+    try {
+        const response = await fetch(`${API_BASE}/api/v1/submissions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: detectedPwaUrl })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Errore durante l'invio.");
+        const statusLabels = {
+            pending_review: "in attesa di revisione",
+            approved: "revisionata",
+            rejected: "non approvata"
+        };
+        const reviewStatus = statusLabels[data.status] || "stato non disponibile";
+        databaseStatus.textContent = data.already_submitted
+            ? `Questa PWA è già nel database: ${reviewStatus}.`
+            : `PWA aggiunta al database: ${reviewStatus}.`;
+        addToDatabaseBtn.hidden = true;
+    } catch (error) {
+        databaseStatus.textContent = "Impossibile aggiungere la PWA: " + error.message;
+    } finally {
+        addToDatabaseBtn.disabled = false;
+    }
+}
+
 document.getElementById("searchBtn").addEventListener("click", checkPWA);
 document.getElementById("urlInput").addEventListener("keydown", (e) => { if (e.key === "Enter") checkPWA(); });
+addToDatabaseBtn.addEventListener("click", addDetectedPwaToDatabase);
 
 const appStatus = document.getElementById("appStatus");
 const installBtn = document.getElementById("installBtn");

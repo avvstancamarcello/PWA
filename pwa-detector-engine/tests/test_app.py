@@ -100,6 +100,69 @@ def test_cors_no_credentials():
     assert "access-control-allow-credentials" not in r.headers
 
 
+def test_submission_rechecks_and_saves_verified_pwa_for_review(tmp_path, monkeypatch):
+    monkeypatch.setenv("PWA_DATABASE_PATH", str(tmp_path / "submissions.sqlite3"))
+    page = "https://public.test"
+    manifest = "https://public.test/m.json"
+    with route({
+        page: FakeResp(PWA_HTML),
+        manifest: FakeResp('{"short_name": "x"}'),
+    }):
+        response = client.post("/api/v1/submissions", json={"url": page})
+
+    assert response.status_code == 201
+    assert response.json() == {
+        "url": page,
+        "status": "pending_review",
+        "already_submitted": False,
+    }
+
+    with engine.database_connection() as connection:
+        rows = connection.execute(
+            "SELECT url, status, manifest_file_valid FROM pwa_submissions"
+        ).fetchall()
+    assert rows == [(page, "pending_review", 1)]
+
+
+def test_duplicate_submission_is_not_duplicated(tmp_path, monkeypatch):
+    monkeypatch.setenv("PWA_DATABASE_PATH", str(tmp_path / "submissions.sqlite3"))
+    page = "https://public.test"
+    manifest = "https://public.test/m.json"
+    with route({
+        page: FakeResp(PWA_HTML),
+        manifest: FakeResp('{"short_name": "x"}'),
+    }):
+        first = client.post("/api/v1/submissions", json={"url": page})
+    with route({
+        page: FakeResp(PWA_HTML),
+        manifest: FakeResp('{"short_name": "x"}'),
+    }):
+        second = client.post("/api/v1/submissions", json={"url": page})
+
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert second.json()["already_submitted"] is True
+    with engine.database_connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM pwa_submissions").fetchone()[0] == 1
+
+
+def test_invalid_manifest_is_not_saved(tmp_path, monkeypatch):
+    monkeypatch.setenv("PWA_DATABASE_PATH", str(tmp_path / "submissions.sqlite3"))
+    page = "https://public.test"
+    with route({page: FakeResp('<html><head><link rel="manifest" href="/m.json"></head></html>'),
+                "https://public.test/m.json": FakeResp('{"description": "not enough"}')}):
+        response = client.post("/api/v1/submissions", json={"url": page})
+
+    assert response.status_code == 422
+    assert "manifest PWA valido" in response.json()["detail"]
+    assert not (tmp_path / "submissions.sqlite3").exists()
+
+
+def test_submission_rejects_missing_or_oversized_url():
+    assert client.post("/api/v1/submissions", json={}).status_code == 422
+    assert client.post("/api/v1/submissions", json={"url": "x" * 2049}).status_code == 422
+
+
 def test_dns_pinning_connects_to_validated_ip():
     import http.server
     import threading
